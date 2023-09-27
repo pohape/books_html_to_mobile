@@ -5,6 +5,13 @@ from bs4 import BeautifulSoup, Tag
 from urllib.parse import ParseResult, urlparse, parse_qs
 
 
+def get_book_id(url: str):
+    parsed_url = urlparse(url)  # type: ParseResult
+    parsed_query = parse_qs(parsed_url.query)  # type: dict
+
+    return parsed_query['mb']
+
+
 def generate_url(user_url: str, page_num: int):
     parsed_url = urlparse(user_url)  # type: ParseResult
     current_page_url = "{}://{}{}?".format(
@@ -25,7 +32,7 @@ def generate_url(user_url: str, page_num: int):
     return current_page_url[:-1]
 
 
-def find_last_page_num(html):
+def parse_book_info(html):
     soup = BeautifulSoup(html, "html.parser")
 
     div = soup.find("div", {"class": "ngg-navigation"})
@@ -40,8 +47,11 @@ def find_last_page_num(html):
 
         if current_page_num > last_page_num:
             last_page_num = current_page_num
+            book_id = int(parsed_query['mb'][0])
 
-    return last_page_num
+    h1_title = soup.find("h1", {"class": "title"})
+
+    return (h1_title.text, book_id, last_page_num)
 
 
 def download_page_or_quit(url):
@@ -89,10 +99,10 @@ def generate_e_book(
     book = epub.EpubBook()
 
     # set metadata
-    book.set_identifier(id)
-    book.set_title(title)
-    book.set_language(language)
-    book.add_author(author)
+    book.set_identifier(str(id))
+    book.set_title(str(title))
+    book.set_language(str(language))
+    book.add_author(str(author))
 
     # create chapter
     chapter = epub.EpubHtml(title=title, file_name="book.xhtml", lang=language)
