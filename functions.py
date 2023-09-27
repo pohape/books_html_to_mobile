@@ -49,7 +49,10 @@ def parse_book_info(html):
             last_page_num = current_page_num
             book_id = int(parsed_query['mb'][0])
 
-    h1_title = soup.find("h1", {"class": "title"})
+    h1_title = soup.find("h1", {"class": "series"})
+
+    if not h1_title:
+        h1_title = soup.find("h1", {"class": "title"})
 
     return (h1_title.text, book_id, last_page_num)
 
