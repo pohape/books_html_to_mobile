@@ -32,8 +32,8 @@ def generate_url(user_url: str, page_num: int):
     return current_page_url[:-1]
 
 
-def parse_book_info(html):
-    soup = BeautifulSoup(html, "html.parser")
+def parse_book_info(html: str):
+    soup = BeautifulSoup(html.replace("<br>", "<br />"), "html.parser")
     content = soup.find("div", id="toc")
 
     div = content.find("div", {"class": "ngg-navigation"})
@@ -79,9 +79,19 @@ def download_page_or_quit(url):
     return response.text
 
 
-def parse_page(html):
-    soup = BeautifulSoup(html, "html.parser")
+def parse_page(html: str):
+    soup = BeautifulSoup(html.replace("<br>", "<br />"), "html.parser")
     content = soup.find("div", id="toc")
+
+    # remove all <ol> <li> <a> tags
+    for ol in content.find_all("ol"):
+        li = ol.find("li", recursive=False)
+
+        if li is not None:
+            a = li.find_all("a", recursive=False)
+
+            if a is not None:
+                ol.decompose()
 
     clean_content = ""
 
