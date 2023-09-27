@@ -55,11 +55,17 @@ def parse_book_info(html: str):
     table_of_contents_ol = content.find("ol")
     table_of_contents_li = table_of_contents_ol.find_all("li", recursive=False)
     table_of_contents = {}
+    table_of_contents_last_element_title = None
 
     for li in table_of_contents_li:
         a = li.find("a", recursive=False)
         book_id, page_num = parse_url_book_id_page_num(a['href'])
-        table_of_contents[a.text] = page_num
+
+        if table_of_contents_last_element_title is not None:
+            table_of_contents[table_of_contents_last_element_title]["end_page"] = page_num - 1
+
+        table_of_contents[a.text] = {"start_page": page_num, "end_page": None}
+        table_of_contents_last_element_title = a.text
 
     return (title_h1.text, book_id, last_page_num, table_of_contents)
 
@@ -88,10 +94,15 @@ def parse_page(html: str):
         li = ol.find("li", recursive=False)
 
         if li is not None:
-            a = li.find_all("a", recursive=False)
+            a = li.find("a", recursive=False)
 
             if a is not None:
                 ol.decompose()
+
+    # remove a name of book
+    for h1 in content.find_all("h1"):
+        if h1.has_attr("class") and h1.get("class")[0] == "series":
+            h1.decompose()
 
     clean_content = ""
 
@@ -109,12 +120,12 @@ def parse_page(html: str):
 
 
 def generate_e_book(
-        id,
-        author,
-        title,
-        language,
-        html_content,
-        output_file_without_ext
+        id: int,
+        author: str,
+        title: str,
+        language: str,
+        chapters_dict: dict,
+        output_file_without_ext: str
 ):
     book = epub.EpubBook()
 
@@ -124,21 +135,33 @@ def generate_e_book(
     book.set_language(str(language))
     book.add_author(str(author))
 
-    # create chapter
-    chapter = epub.EpubHtml(title=title, file_name="book.xhtml", lang=language)
-    chapter.content = html_content
+    book.spine = ["nav"]
+    i = 0
 
-    # add chapter
-    book.add_item(chapter)
+    for chapter_title in list(chapters_dict.keys()):
+        i += 1
 
-    # define Table Of Contents
-    book.toc = (
-        epub.Link("book.xhtml", title, title),
-        (epub.Section(title), (chapter,)),
-    )
+        # create chapter
+        chapter = epub.EpubHtml(
+            title=chapter_title,
+            file_name=str(i) + ".xhtml",
+            lang=language
+        )
 
-    # basic spine
-    book.spine = ["nav", chapter]
+        chapter.content = chapters_dict[chapter_title]
+
+        # add chapter
+        book.add_item(chapter)
+        book.spine.append(chapter)
+        book.toc.append(epub.Link(
+            href=str(i) + ".xhtml",
+            title=chapter_title,
+            uid=str(i)
+        ))
+
+    # add navigation files
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
 
     # write to the file
     epub.write_epub(output_file_without_ext + ".epub", book, {})
