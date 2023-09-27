@@ -5,11 +5,11 @@ from bs4 import BeautifulSoup, Tag
 from urllib.parse import ParseResult, urlparse, parse_qs
 
 
-def get_book_id(url: str):
+def parse_url_book_id_page_num(url: str):
     parsed_url = urlparse(url)  # type: ParseResult
     parsed_query = parse_qs(parsed_url.query)  # type: dict
 
-    return parsed_query['mb']
+    return (int(parsed_query['mb'][0]), int(parsed_query['part'][0]))
 
 
 def generate_url(user_url: str, page_num: int):
@@ -34,27 +34,34 @@ def generate_url(user_url: str, page_num: int):
 
 def parse_book_info(html):
     soup = BeautifulSoup(html, "html.parser")
+    content = soup.find("div", id="toc")
 
-    div = soup.find("div", {"class": "ngg-navigation"})
-    a_tags = div.find_all("a", href=True)
+    div = content.find("div", {"class": "ngg-navigation"})
+    navigation_a_tags = div.find_all("a", href=True)
 
     last_page_num = 0
 
-    for a in a_tags:
-        parsed_url = urlparse(a['href'])
-        parsed_query = parse_qs(parsed_url.query)
-        current_page_num = int(parsed_query['part'][0])
+    for a in navigation_a_tags:
+        book_id, current_page_num = parse_url_book_id_page_num(a['href'])
 
         if current_page_num > last_page_num:
             last_page_num = current_page_num
-            book_id = int(parsed_query['mb'][0])
 
-    h1_title = soup.find("h1", {"class": "series"})
+    title_h1 = content.find("h1", {"class": "series"})
 
-    if not h1_title:
-        h1_title = soup.find("h1", {"class": "title"})
+    if not title_h1:
+        title_h1 = soup.find("h1", {"class": "title"})
 
-    return (h1_title.text, book_id, last_page_num)
+    table_of_contents_ol = content.find("ol")
+    table_of_contents_li = table_of_contents_ol.find_all("li", recursive=False)
+    table_of_contents = {}
+
+    for li in table_of_contents_li:
+        a = li.find("a", recursive=False)
+        book_id, page_num = parse_url_book_id_page_num(a['href'])
+        table_of_contents[a.text] = page_num
+
+    return (title_h1.text, book_id, last_page_num, table_of_contents)
 
 
 def download_page_or_quit(url):
