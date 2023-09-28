@@ -34,15 +34,6 @@ for current_page_num in range(1, last_page_num + 1):
     response_html = functions.download_page_or_quit(page_url)
     chapters[current_chapter_title] += functions.parse_page(response_html)
 
-# with open(str(book_id) + ".json", mode="w") as f:
-#     f.write(json.dumps(
-#         chapters,
-#         indent=2,
-#         ensure_ascii=False
-#     ))
-
-# quit()
-
 filename = title.replace(" ", "_")
 
 functions.generate_e_book(
