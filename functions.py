@@ -135,7 +135,8 @@ def generate_e_book(
         title: str,
         language: str,
         chapters_dict: dict,
-        output_file_without_ext: str
+        output_file_without_ext: str,
+        table_of_contents_needed=True
 ):
     book = epub.EpubBook()
 
@@ -145,29 +146,38 @@ def generate_e_book(
     book.set_language(str(language))
     book.add_author(str(author))
 
-    book.spine = ["nav"]
-    i = 0
+    if table_of_contents_needed:
+        book.spine = ["nav"]
+        i = 0
 
-    for chapter_title in list(chapters_dict.keys()):
-        i += 1
+        for chapter_title in list(chapters_dict.keys()):
+            i += 1
 
-        # create chapter
-        chapter = epub.EpubHtml(
-            title=chapter_title,
-            file_name=str(i) + ".xhtml",
-            lang=language
+            # create chapter
+            chapter = epub.EpubHtml(
+                title=chapter_title,
+                file_name=str(i) + ".xhtml",
+                lang=language,
+                content=chapters_dict[chapter_title],
+            )
+
+            # add chapter
+            book.add_item(chapter)
+            book.spine.append(chapter)
+            book.toc.append(epub.Link(
+                href=str(i) + ".xhtml",
+                title=chapter_title,
+                uid=str(i)
+            ))
+    else:
+        full_content_as_chapter = epub.EpubHtml(
+            title=title,
+            file_name="book.xhtml",
+            lang=language,
+            content="\n".join(chapters_dict.values()),
         )
-
-        chapter.content = chapters_dict[chapter_title]
-
-        # add chapter
-        book.add_item(chapter)
-        book.spine.append(chapter)
-        book.toc.append(epub.Link(
-            href=str(i) + ".xhtml",
-            title=chapter_title,
-            uid=str(i)
-        ))
+        book.spine = [full_content_as_chapter]
+        book.add_item(full_content_as_chapter)
 
     # add navigation files
     book.add_item(epub.EpubNcx())

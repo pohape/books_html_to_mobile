@@ -3,7 +3,11 @@ import functions
 
 parser = ArgumentParser()
 parser.add_argument("-u", "--url", default=None)
-user_url = parser.parse_args().url
+parser.add_argument("-n", "--no-table-of-contents", action='store_true')
+
+args = parser.parse_args()
+user_url = args.url
+no_table_of_contents = args.no_table_of_contents
 
 if user_url is None:
     print("Please specify an URL of the book using --url=")
@@ -56,7 +60,8 @@ functions.generate_e_book(
     language="ru",
     author="КБК",
     chapters_dict={k: v for (k, v) in chapters.items() if len(v) > 0},
-    output_file_without_ext=filename
+    output_file_without_ext=filename,
+    table_of_contents_needed=not no_table_of_contents
 )
 
 print("Done: " + filename)
