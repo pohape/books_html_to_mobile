@@ -99,10 +99,20 @@ def parse_page(html: str):
             if a is not None:
                 ol.decompose()
 
-    # remove a name of book
-    for h1 in content.find_all("h1"):
-        if h1.has_attr("class") and h1.get("class")[0] == "series":
-            h1.decompose()
+    for tag_name in ("h1", "h2"):
+        for tag in content.find_all(tag_name):
+            if tag.has_attr("class") and tag.get("class")[0] == "series":
+                tag.decompose()
+            elif tag.get_text() == 'СОДЕРЖАНИЕ':
+                tag.decompose()
+            else:
+                b = soup.new_tag("b")
+                b.string = tag.get_text()
+
+                p = soup.new_tag("p", align="center")
+                p.append(b)
+
+                tag.replace_with(p)
 
     clean_content = ""
 
