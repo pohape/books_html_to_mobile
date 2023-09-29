@@ -99,34 +99,37 @@ def parse_page(html: str):
             if a is not None:
                 ol.decompose()
 
-    for tag_name in ("h1", "h2"):
-        for tag in content.find_all(tag_name):
-            if tag.has_attr("class") and tag.get("class")[0] == "series":
-                tag.decompose()
-            elif tag.get_text() == 'СОДЕРЖАНИЕ':
-                tag.decompose()
-            else:
-                b = soup.new_tag("b")
-                b.string = tag.get_text()
-
-                p = soup.new_tag("p", align="center")
-                p.append(b)
-
-                tag.replace_with(p)
-
-    clean_content = ""
-
     for tag in content.find_all(recursive=False):
-        tag = tag  # type: Tag
+        if tag.name == "br":
+            tag.decompose()
+        elif tag.has_attr("class") and tag.get("class")[0] == "ngg-navigation":
+            tag.decompose()
 
-        if tag.has_attr("class") and tag.get("class")[0] == "ngg-navigation":
-            continue
-        elif tag.name == "br":
-            continue
+    for tag in content.find_all("h1"):
+        if tag.get_text() == 'СОДЕРЖАНИЕ' or tag.get_text() == 'ПРЕДИСЛОВИЕ':
+            tag.decompose()
+        elif tag.has_attr("class") and tag.get("class")[0] == "series":
+            tag.decompose()
         else:
-            clean_content += str(tag)
+            b = soup.new_tag("b")
+            b.string = tag.get_text()
 
-    return clean_content
+            p = soup.new_tag("p", align="center")
+            p.append(b)
+            p.insert(0, soup.new_tag("br"))
+
+            tag.replace_with(p)
+
+    for tag in content.find_all("h2"):
+        b = soup.new_tag("b")
+        b.string = tag.get_text()
+
+        p = soup.new_tag("p", align="center")
+        p.append(b)
+
+        tag.replace_with(p)
+
+    return "\n".join([str(tag)for tag in content.find_all(recursive=False)])
 
 
 def generate_e_book(
