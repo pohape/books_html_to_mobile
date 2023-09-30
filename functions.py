@@ -88,6 +88,10 @@ def download_page_or_quit(url):
 def parse_page(html: str):
     soup = BeautifulSoup(html.replace("<br>", "<br />"), "html.parser")
     content = soup.find("div", id="toc")
+    content.find("div", {"class": "ngg-navigation"}).decompose()
+
+    for br in content.find_all("br"):
+        br.decompose()
 
     # remove all <ol> <li> <a> tags
     for ol in content.find_all("ol"):
@@ -99,12 +103,6 @@ def parse_page(html: str):
             if a is not None:
                 ol.decompose()
 
-    for tag in content.find_all(recursive=False):
-        if tag.name == "br":
-            tag.decompose()
-        elif tag.has_attr("class") and tag.get("class")[0] == "ngg-navigation":
-            tag.decompose()
-
     for tag in content.find_all("h1"):
         if tag.get_text() == 'СОДЕРЖАНИЕ' or tag.get_text() == 'ПРЕДИСЛОВИЕ':
             tag.decompose()
@@ -112,13 +110,16 @@ def parse_page(html: str):
             tag.decompose()
         else:
             b = soup.new_tag("b")
-            b.string = tag.get_text()
+            value = str(tag.get_text())
+            b.string = value
 
-            p = soup.new_tag("p", align="center")
-            p.append(b)
-            p.insert(0, soup.new_tag("br"))
+            if len(value) > 0:
+                b.insert(0, soup.new_tag("br"))
 
-            tag.replace_with(p)
+                if len(value) <= 30 and value != "ПЛАН":
+                    b.insert(0, soup.new_tag("br"))
+
+            tag.replace_with(b)
 
     for tag in content.find_all("h2"):
         b = soup.new_tag("b")
