@@ -1,7 +1,7 @@
 from ebooklib import epub
 from requests.exceptions import RequestException
 import requests
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
 from urllib.parse import ParseResult, urlparse, parse_qs
 
 
