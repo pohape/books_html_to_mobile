@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+
 import functions
 
 parser = ArgumentParser()
@@ -16,16 +17,17 @@ if user_url is None:
 chapters = {}
 response_html = functions.download_page_or_quit(user_url)
 
-title, book_id, last_page_num, table_of_ctnts = functions.parse_book_info(
-    response_html
-)
+if 'loveread' in user_url:
+    title, book_id, last_page_num, table_of_ctnts = functions.parse_loveread_book_info(response_html)
+else:
+    title, book_id, last_page_num, table_of_ctnts = functions.parse_kbk_book_info(response_html)
 
 for current_pg_num in range(1, last_page_num + 1):
     current_chapter_title = None
 
     for chapter_ttl in list(table_of_ctnts.keys()):
         if current_pg_num >= table_of_ctnts[chapter_ttl]["start_page"]:
-            if table_of_ctnts[chapter_ttl]["end_page"] is None or\
+            if table_of_ctnts[chapter_ttl]["end_page"] is None or \
                     current_pg_num <= table_of_ctnts[chapter_ttl]["end_page"]:
                 current_chapter_title = chapter_ttl
 
@@ -43,14 +45,20 @@ for current_pg_num in range(1, last_page_num + 1):
     ))
 
     response_html = functions.download_page_or_quit(page_url)
-    current_parsed_page = functions.parse_page(response_html)
+
+    if 'loveread' in user_url:
+        current_parsed_page = functions.parse_page_loveread(response_html)
+    else:
+        current_parsed_page = functions.parse_page_kbk(response_html)
+
     chapters[current_chapter_title] += current_parsed_page
 
-    print("Added {:.2f} KB to the book, total \
-size of the book is {:.2f} KB\n".format(
+    print("Added {:.2f} KB to the book, total size of the book is {:.2f} KB\n".format(
         len(current_parsed_page) / 1024,
         sum([len(parsed_page) for parsed_page in chapters.values()]) / 1024
     ))
+
+print(chapters)
 
 filename = title.replace(" ", "_")
 

@@ -1,4 +1,4 @@
-
 .vscode/
 *.epub
 __pycache__/
+.idea/

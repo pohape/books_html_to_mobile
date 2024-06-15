@@ -1,8 +1,9 @@
-from ebooklib import epub
-from requests.exceptions import RequestException
+from urllib.parse import ParseResult, urlparse, parse_qs
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import ParseResult, urlparse, parse_qs
+from ebooklib import epub
+from requests.exceptions import RequestException
 
 
 def parse_url_book_id_page_num(url: str):
@@ -21,7 +22,11 @@ def generate_url(user_url: str, page_num: int):
     )
 
     parsed_query = parse_qs(parsed_url.query)  # type: dict
-    parsed_query['part'] = [page_num]
+
+    if 'loveread' in user_url:
+        parsed_query['p'] = [page_num]
+    else:
+        parsed_query['part'] = [page_num]
 
     for key in parsed_query:
         current_page_url += "{}={}&".format(
@@ -32,7 +37,47 @@ def generate_url(user_url: str, page_num: int):
     return current_page_url[:-1]
 
 
-def parse_book_info(html: str):
+def parse_loveread_book_info(html: str):
+    book_title = None
+    book_id = None
+    last_page_num = None
+
+    soup = BeautifulSoup(html.replace("<br>", "<br />"), "html.parser")
+    h2_tag = soup.find('h2')
+
+    if h2_tag:
+        # Поиск ссылки внутри тега <h2>
+        link = h2_tag.find('a', href=lambda href: href and 'view_global.php' in href)
+
+        if link:
+            book_title = link.get_text()
+            book_id = link['href'].split('id=')[-1]
+
+    navigation_div = soup.find('div', class_='navigation')
+
+    if navigation_div:
+        page_links = navigation_div.find_all('a', href=lambda href: href and 'read_book.php' in href)
+        page_numbers = []
+
+        for link in page_links:
+            href = link['href']
+            # Извлечение номера страницы из ссылки
+            page_number = href.split('p=')[-1]
+            page_numbers.append(int(page_number))
+
+        last_page_num = max(page_numbers)
+
+    table_of_contents = {
+        'Книга': {
+            'start_page': 1,
+            'end_page': last_page_num
+        }
+    }
+
+    return book_title, book_id, last_page_num, table_of_contents
+
+
+def parse_kbk_book_info(html: str):
     soup = BeautifulSoup(html.replace("<br>", "<br />"), "html.parser")
     content = soup.find("div", id="toc")
 
@@ -67,7 +112,7 @@ def parse_book_info(html: str):
         table_of_contents[a.text] = {"start_page": page_num, "end_page": None}
         table_of_contents_last_element_title = a.text
 
-    return (title_h1.text, book_id, last_page_num, table_of_contents)
+    return title_h1.text, book_id, last_page_num, table_of_contents
 
 
 def download_page_or_quit(url):
@@ -85,7 +130,14 @@ def download_page_or_quit(url):
     return response.text
 
 
-def parse_page(html: str):
+def parse_page_loveread(html: str):
+    soup = BeautifulSoup(html.replace("<br>", "<br />"), "html.parser")
+    p_tags = soup.find_all('p', class_='MsoNormal')
+
+    return ''.join(str(p) for p in p_tags)
+
+
+def parse_page_kbk(html: str):
     soup = BeautifulSoup(html.replace("<br>", "<br />"), "html.parser")
     content = soup.find("div", id="toc")
     content.find("div", {"class": "ngg-navigation"}).decompose()
@@ -130,7 +182,7 @@ def parse_page(html: str):
 
         tag.replace_with(p)
 
-    return "\n".join([str(tag)for tag in content.find_all(recursive=False)])
+    return "\n".join([str(tag) for tag in content.find_all(recursive=False)])
 
 
 def generate_e_book(
